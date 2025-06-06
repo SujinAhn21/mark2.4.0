@@ -12,7 +12,7 @@ from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 
-import functools # 답답해서 로그 강제 출력..
+import functools # 답답해서 로그 강제 출력.. 왜 강제 출력해도 어디서 실행하든 출력이 한번에 와다다 나올까?
 print = functools.partial(print, flush = True)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -71,7 +71,7 @@ def collate_fn(batch):
     if not mel_list:
         return torch.empty(0), torch.empty(0)
         
-    # (1) 모든 샘플 중 최대 K를 계산산
+    # (1) 모든 샘플 중 최대 K를 계산
     max_k = max(mel.shape[0] for mel in mel_list)
         
     # (2) K 맞추기: 부족하면 zero-padding 추가
