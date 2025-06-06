@@ -1,0 +1,22 @@
+[Data Descriptions]
+
+◾ mark 2.1: Thumping Sounds vs. Other Noises
+- Target (Positive): Heavy footsteps, running, thudding, or objects dropping — 50 samples
+- Others (Negative): Voices, TV, shower, drill, ambient noise — 100 samples (to be updated to 200)
+- Unlabeled: Ambient sounds during suspected noise hours (appliances, casual conversations, faint music, etc.) — 500 samples
+
+◾ mark 2.2: Shower/Toilet Water Sounds vs. Other Noises
+- Target (Positive): Shower stream, toilet flushing, running water from faucets — 50 samples
+- Others (Negative): Thumps, voices, TV, drill, ventilation sounds — 100 samples (to be updated to 200)
+- Unlabeled: Sounds near the bathroom (e.g., tooth brushing, turning on the sink, light conversation, ventilation) — 500 samples
+
+◾ mark 2.3: Construction/Drilling Sounds vs. Other Noises
+- Target (Positive): Concrete impact, drilling, hammering — 50 samples
+- Others (Negative): Voices, thumps, shower sounds, appliance noise — 100 samples (to be updated to 200)
+- Unlabeled: Indoor/outdoor mechanical noise, motor hums, ventilation, low-frequency vibrations — 500 samples
+
+◾ mark 2.4: Daily Conversational Noise vs. Other Noises
+- Target (Positive): Speaking, casual conversation, TV dialogue, phone calls — 100 samples (to be updated to 200)
+- Others (Negative): Thumps, drilling, shower sounds, ventilation — 100 samples (to be updated to 200)
+- Unlabeled: Various everyday sounds (laughing, objects bumping, background music, street noise) — 500 samples
+

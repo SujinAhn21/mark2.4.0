@@ -1,0 +1,85 @@
+Project Title: Development of an Audio Classification Model for Inter-floor Noise Based on ViLD
+
+Development Period: March 2025 – June 2025
+Developer: Sujin Ahn
+
+1. Project Overview and Background
+   Inter-floor noise in modern apartment living has become a serious source of social conflict. Due to its nature, legal standards and physical countermeasures often remain ambiguous. Therefore, the need for an intelligent audio classification system that can perceive and distinguish such noise has emerged. This project aims to address this practical issue by developing a semi-supervised learning-based audio recognition model, specifically designed to detect and classify inter-floor noise among various indoor sounds.
+
+The core idea of ViLD (Vision-Language Distillation) lies in the joint embedding of images and text. This project extends that concept to audio-text matching by converting audio into mel spectrograms and embedding them with a SimpleAudioEncoder. Simultaneously, class-specific text prompts are embedded using SentenceTransformer. The model then compares these embeddings based on cosine similarity, enabling the teacher model to classify audio by its semantic closeness to the given text.
+
+2. Motivation and Choice of Data Representation
+   Raw audio signals are represented in the time domain and contain rich information perceptible to humans. However, they often include excessive details irrelevant for machine classification tasks. Hence, a frequency domain representation such as spectrogram is essential.
+
+Among these, the Mel Spectrogram is particularly suitable as it reflects human auditory perception through the Mel scale, emphasizing low-frequency components more than high-frequency ones. This approach guides the model to learn how humans perceive noise, rather than simply processing signal energy. For this reason, all audio inputs in this project were converted into mel spectrograms and treated as image-like inputs for the audio embedding model.
+
+3. Initial Design – Soft Label-Based Semi-Supervised Learning
+   In the early stages, we adopted a semi-supervised learning approach inspired by the ViLD architecture. Text prompts (e.g., “thumping sound”, “background noise”) were embedded using SentenceTransformer, while audio inputs were embedded via SimpleAudioEncoder. Cosine similarity between these embeddings produced soft labels, which were then used to train the student model.
+
+This method was advantageous for zero-shot generalization and enabled learning based on semantic similarity without explicit labels. However, several issues arose:
+
+* Soft labels reflect class probability distributions, which led to ambiguity in binary classification tasks requiring clear-cut decisions.
+* Although training progressed, validation metrics such as accuracy, precision, and recall did not improve.
+* The combination of labeling noise from unlabeled data and uncertainty in soft labels caused unstable convergence in the student model.
+
+4. Structural Shift – Supervised Learning with Hard Labels
+   To resolve the above problems, we transitioned from soft label-based training to a fully supervised structure using hard labels. This strategic decision was made after extensive experimentation and discussion.
+
+* The teacher model still uses SentenceTransformer but now outputs argmax predictions as hard labels instead of soft distributions.
+* The student model performs classification using softmax outputs and CrossEntropyLoss for clear label supervision.
+* Each audio segment is assigned a single correct label, and evaluation metrics such as confusion matrix and F1 score become more interpretable.
+* Input tensors are normalized to shape (1,1,64,101) using the function normalize_mel_shape(), improving training stability.
+
+After this structural shift, we observed significantly faster and clearer loss convergence, as well as improvements in all key evaluation metrics. EarlyStopping was effective in preventing overfitting, and confusion matrix visualizations showed a notable boost in classification accuracy.
+
+5.1 Structural Shift – Dataset Composition
+With the transition to hard labels, the dataset structure was modified as follows:
+
+* Target (Positive): 50 samples
+* Others (Negative): 200 samples (currently 100 used for experiments; will be expanded to 200)
+* Unlabeled: 500 samples
+  Only labeled data were used for supervised training with CrossEntropyLoss, while the unlabeled set was reserved for potential use in future active learning experiments.
+
+5.2 Structural Shift – Dataset Variants
+mark 2.1: Thumping noise vs. Others
+
+* Positive: thumping, jumping, heavy objects falling (50 samples)
+* Negative: speech, TV, shower, drill, ambient sounds (100 samples, to be expanded to 200)
+
+mark 2.2: Shower/Toilet water sounds vs. Others
+
+* Positive: shower water, toilet flush, faucet (50 samples)
+* Negative: thumping, speech, TV, drill, ventilation, etc. (100 samples, expandable)
+
+mark 2.3: Construction/Drill sounds vs. Others
+
+* Positive: concrete impact, drills, hammering (50 samples)
+* Negative: speech, thumping, shower, appliances, etc. (100 samples)
+
+mark 2.4: Everyday noise (speech/chatter) vs. Others
+
+* Positive: speech, conversation, TV dialogue, phone calls (100 samples)
+* Negative: thumping, drill, shower, ventilation (100 samples)
+
+6. Results and Performance Improvements
+   After transitioning to hard labels, the student model exhibited the following improvements:
+
+* Training loss converged more clearly and rapidly
+* Precision, recall, F1 score, and confusion matrix performance significantly improved
+* Overfitting was greatly reduced, and early stopping functioned effectively for stable training
+
+7. Current Structure and Summary
+   The current mark2.4.0 model utilizes a teacher with text-based audio classification and a student trained via supervised learning with hard labels. In future iterations, we plan to explore semi-supervised learning again through techniques such as pseudo-labeling and consistency training. The current structure serves as the optimized baseline for upcoming experiments.
+
+The unlabeled data currently excluded from training are safely ignored by the normalize_label() function and will be archived for future mark3 development.
+
+* In mark3, the teacher will be trained on labeled data and generate soft labels for the unlabeled samples.
+* These will be saved as soft_labels_mark3.pkl and used to train the student model in a mimic-learning fashion.
+* Consistency training and pseudo-label filtering will also be considered in the future.
+
+8. Conclusion and Future Direction
+   This project not only developed an audio classification model but also laid the foundation for real-world inter-floor noise recognition technology. The failure of the soft label approach led to a structural transition and the establishment of a robust training pipeline. These efforts and experimental records provide a solid basis for future academic publication or patent application.
+
+Future objectives include the completion of the mark3 framework, optimal utilization of unlabeled data, expansion to multi-label classification, and real-time mobile inference.
+
+This project holds significant meaning not only as academic research but also as a practical application of AI technology for solving real societal issues.

@@ -1,0 +1,85 @@
+프로젝트명: ViLD 기반 층간소음 오디오 분류 모델 개발
+
+개발 기간: 2025년 3월 ~ 2025년 6월
+개발자: 안수진
+
+1. 프로젝트 개요 및 배경
+   현대 아파트 생활에서 층간소음은 심각한 사회적 갈등의 원인이 되고 있습니다. 그 특성상 법적 기준이나 물리적인 해결책이 모호한 경우가 많기 때문에, 이를 인지하고 구분할 수 있는 지능형 오디오 분류 시스템의 필요성이 제기되었습니다. 본 프로젝트는 다양한 실내 소음 중에서도 특히 층간소음을 감지하고 분류할 수 있는 반지도학습 기반 오디오 인식 모델을 개발하는 것을 목표로 삼고 있습니다.
+
+ViLD(Vision-Language Distillation)의 핵심 개념은 이미지와 텍스트 간의 공동 임베딩입니다. 본 프로젝트에서는 이 개념을 오디오-텍스트 간 임베딩으로 확장하여 오디오 분류 문제에 적용하였습니다. 오디오는 mel spectrogram으로 변환한 후 SimpleAudioEncoder로 임베딩하고, 각 클래스에 대응되는 텍스트 표현은 SentenceTransformer를 통해 임베딩합니다. 이후 두 임베딩 간 cosine 유사도를 비교하여 teacher 모델이 오디오를 텍스트 의미 기반으로 분류할 수 있도록 구성했습니다.
+
+2. 실험 동기 및 데이터 표현 방식 선택 이유
+   원시 오디오 신호는 시간 영역(time domain)에서 표현되며, 사람에게는 의미 있는 소리의 특성을 담고 있지만, 머신러닝 모델에게는 불필요한 세부 정보가 많아 분류에 적합하지 않습니다. 따라서 주파수 영역 기반의 스펙트로그램 표현 방식이 필수적입니다.
+
+특히 Mel Spectrogram은 사람의 청각 특성을 반영한 Mel 스케일 기반의 주파수 변환으로, 고주파보다 저주파 영역에 더 민감한 인간 청각 특성을 고려합니다. 이는 단순한 주파수 정보 이상으로, 사람이 소음을 어떻게 인지하는지를 모델이 학습할 수 있도록 유도합니다. 본 프로젝트에서는 모든 오디오 데이터를 mel spectrogram으로 변환하고 이미지처럼 처리하여 오디오 임베딩 모델에 입력하였습니다.
+
+3. 초기 구조 – soft label 기반 반지도학습
+   초기 실험 단계에서는 ViLD 구조를 차용한 soft label 기반의 반지도학습 접근법을 도입했습니다. 텍스트 프롬프트(예: "thumping sound", "background noise")는 SentenceTransformer로 임베딩하고, mel spectrogram은 SimpleAudioEncoder로 임베딩한 후, 두 벡터 간 cosine 유사도를 계산하여 soft label을 생성했습니다. 이를 바탕으로 student 모델을 학습시켰습니다.
+
+이 방식은 zero-shot 일반화에 유리하고, 명시적인 라벨 없이도 의미 기반 분류가 가능하다는 장점이 있으나 다음과 같은 문제점이 있었습니다:
+
+* soft label은 클래스 간 확률 분포를 포함하므로, binary classification과 같은 명확한 경계가 필요한 경우에는 예측이 불명확해짐
+* 학습은 진행되었으나, 정확도, 정밀도, 재현율 등 validation 성능은 개선되지 않음
+* unlabeled 데이터의 라벨링 오류와 soft label의 잡음이 결합되어 student 모델의 수렴이 불안정해짐
+
+4. 구조 전환 – hard label 기반 지도학습
+   위의 문제를 해결하기 위해 soft label 기반 구조를 버리고 hard label을 사용하는 명확한 지도학습 구조로 전환했습니다. 이 결정은 여러 차례의 실험과 논의 끝에 도출된 전략적 판단이었습니다.
+
+* teacher 모델은 SentenceTransformer를 기반으로 유지하되, soft label이 아닌 argmax 결과만을 hard label로 사용
+* student 모델은 softmax 출력을 기반으로 CrossEntropyLoss를 사용하여 분류 수행
+* 각 오디오 샘플은 하나의 명확한 정답 라벨을 가지며, 혼동 행렬, F1 score 등 평가 지표의 해석이 용이함
+* 입력 데이터는 normalize_mel_shape() 함수를 통해 (1,1,64,101) 형태로 정규화하여 학습 안정성 확보
+
+이러한 구조 전환 이후 loss의 수렴 속도와 정확도가 명확히 향상되었고, EarlyStopping을 통한 과적합 방지와 혼동 행렬 기반의 시각화에서도 성능 개선을 확인할 수 있었습니다.
+
+5.1 구조 전환 – 데이터셋 구성
+hard label 기반으로 구조를 전환하면서 다음과 같이 데이터셋을 구성했습니다:
+
+* Target(Positive): 50개
+* Others(Negative): 200개 (현재는 100개 기준으로 실험 중이며, 향후 200개로 확장 예정)
+* Unlabeled: 500개
+  학습 시에는 labeled 데이터만 사용하여 CrossEntropyLoss를 통한 명확한 지도학습을 수행하고, unlabeled 데이터는 후속 active learning 실험용으로 분리해두었습니다.
+
+5.2 구조 전환 – 데이터셋 버전
+mark 2.1: 쿵쿵 소리 vs 기타 소음
+
+* Positive: 쿵쿵, 뛰는 소리, 무거운 물건 낙하음 (50개)
+* Negative: 말소리, TV, 샤워, 드릴, 기타 배경 소음 (100개, 추후 200개로 확장)
+
+mark 2.2: 샤워/변기 물소리 vs 기타 소음
+
+* Positive: 샤워기 물소리, 변기 물내림, 수도꼭지 (50개)
+* Negative: 쿵쿵, 말소리, TV, 드릴, 환풍기 등 (100개, 확장 예정)
+
+mark 2.3: 공사/드릴 소리 vs 기타 소음
+
+* Positive: 콘크리트 타격음, 드릴, 망치질 (50개)
+* Negative: 말소리, 쿵쿵, 샤워, 가전 등 (100개)
+
+mark 2.4: 일상소음(대화) vs 기타 소음
+
+* Positive: 말소리, 잡담, TV 대화, 통화 등 (100개)
+* Negative: 쿵쿵, 드릴, 샤워, 환풍기 등 (100개)
+
+6. 결과 및 성능 향상
+   hard label 전환 이후 student 모델은 다음과 같은 성능 향상을 보였습니다:
+
+* 학습 손실(loss)이 명확하고 빠르게 수렴
+* precision, recall, F1 score 및 confusion matrix 등 주요 지표 향상
+* overfitting 현상이 줄었고, EarlyStopping이 효과적으로 작동하여 안정적인 학습 가능
+
+7. 현재 구조 및 요약
+   현재 mark2.4.0 모델은 teacher는 텍스트 기반 오디오 분류 구조, student는 hard label 기반 지도학습 구조를 따릅니다. 향후에는 unlabeled 데이터를 다시 활용하기 위해 pseudo-labeling이나 consistency training 방식의 반지도학습을 재도입할 예정입니다. 현재 구조는 향후 실험을 위한 최적화된 베이스라인으로 활용됩니다.
+
+현재 학습에서 제외된 unlabeled 데이터는 normalize_label() 함수 내에서 자동 무시되며, 향후 mark3 실험을 위해 archive 폴더에 별도 보관할 예정입니다.
+
+* mark3에서는 teacher가 labeled 데이터만으로 학습 후, unlabeled 데이터에 대해 soft label을 생성
+* soft_labels_mark3.pkl로 저장하여 student가 mimic-learning 방식으로 전체 데이터를 학습
+* consistency training 또는 soft label filtering 기법도 도입 예정
+
+8. 결론 및 향후 계획
+   본 프로젝트는 단순한 오디오 분류를 넘어, 현실 생활에서 활용 가능한 층간소음 인식 기술의 기반을 마련했다는 점에서 의미가 큽니다. 초기 soft label 실험 실패를 계기로 구조를 재정비하고, 안정적인 학습 구조를 확립했으며, 그 과정은 향후 논문화 또는 특허화를 검토할 수 있을 정도로 탄탄한 기반이 되었습니다.
+
+향후 목표는 mark3 구조 완성과 unlabeled 데이터 활용 최적화, multi-label 구조 확장, 모바일 환경에서의 실시간 분류 실험 등입니다.
+
+이 프로젝트는 학술적 가치뿐 아니라, 실제 사회 문제를 해결하는 AI 기술의 응용이라는 점에서 매우 큰 의미를 지닙니다.
