@@ -41,9 +41,9 @@ def load_hard_labels(config, mark_version):
 
 '''
 <<세그먼트 수 불일치 해결>>
--  segment 수가 다르더라도 shape 고정 보장: [B, K, 1, 64, 101] 으로 무조건 통일.
-- 세그먼트 수 불일치 해결: 부족시 zero padding, 초과 시 slice
-=> 실험 일관성 유지: K값(label 수)에 맞춰 shape을 맞춤.
+- 최대 K 값 계산
+- 세그먼트 수 불일치 해결: 부족시 zero padding.
+=> 실험 일관성 유지(제발 이게 마지막이었으면..)
 
 '''
 
